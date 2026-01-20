@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import { signOut } from 'next-auth/react';
-import { LogOut, Mic, MicOff } from 'lucide-react';
+import { LogOut, Mic, MicOff, Moon, Sun } from 'lucide-react';
 import { SageAvatar } from './sage-avatar';
 import { Button } from '@/components/ui/button';
 import { useSpeechRecognition, useSpeechSynthesis } from '@/lib/hooks/use-speech';
@@ -34,6 +34,7 @@ function cleanTextForSpeech(text: string): string {
 export function ChatContainer() {
   const [isConversationActive, setIsConversationActive] = useState(false);
   const [testSpeaking, setTestSpeaking] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const pendingMessageRef = useRef<string | null>(null);
 
   const transport = useMemo(
@@ -146,27 +147,45 @@ export function ChatContainer() {
   const isVoiceSupported = isRecognitionSupported && isSynthesisSupported;
 
   return (
-    <div className="flex flex-col h-screen bg-gradient-to-b from-white to-gray-50">
+    <div className={`flex flex-col h-screen transition-colors duration-300 ${
+      isDarkMode
+        ? 'bg-gradient-to-b from-gray-900 to-gray-950'
+        : 'bg-gradient-to-b from-white to-gray-50'
+    }`}>
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white/80 backdrop-blur-sm">
+      <header className={`flex items-center justify-between px-6 py-4 border-b backdrop-blur-sm transition-colors duration-300 ${
+        isDarkMode
+          ? 'border-gray-700 bg-gray-900/80'
+          : 'border-gray-200 bg-white/80'
+      }`}>
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-lg bg-emerald-600 flex items-center justify-center">
             <span className="text-white font-bold text-lg">S</span>
           </div>
           <div>
-            <h1 className="font-semibold text-gray-900">Synapgen®</h1>
-            <p className="text-xs text-gray-500">Assistant Commercial</p>
+            <h1 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Synapgen®</h1>
+            <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Assistant Commercial</p>
           </div>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => signOut({ callbackUrl: '/login' })}
-          className="text-gray-500 hover:text-gray-700"
-        >
-          <LogOut className="h-4 w-4 mr-2" />
-          Déconnexion
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsDarkMode(!isDarkMode)}
+            className={isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-700'}
+          >
+            {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => signOut({ callbackUrl: '/login' })}
+            className={isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-700'}
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Déconnexion
+          </Button>
+        </div>
       </header>
 
       {/* Main Content - Centered Avatar */}
@@ -174,7 +193,7 @@ export function ChatContainer() {
         <SageAvatar isSpeaking={isSpeaking || testSpeaking} />
 
         {/* Status Text */}
-        <p className="text-gray-600 mt-24 text-center relative z-20">
+        <p className={`mt-24 text-center relative z-20 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
           {!isConversationActive && !testSpeaking && "Cliquez sur Démarrer pour parler avec Sage"}
           {isConversationActive && isListening && "Je vous écoute..."}
           {isConversationActive && isSpeaking && "Sage parle..."}
@@ -218,7 +237,9 @@ export function ChatContainer() {
             className={`px-6 py-6 text-lg rounded-full ${
               testSpeaking
                 ? 'bg-amber-500 text-white border-amber-500 hover:bg-amber-600'
-                : 'border-gray-300 text-gray-600 hover:bg-gray-100'
+                : isDarkMode
+                  ? 'border-gray-600 text-gray-300 hover:bg-gray-800'
+                  : 'border-gray-300 text-gray-600 hover:bg-gray-100'
             }`}
           >
             {testSpeaking ? 'Stop Test' : 'Test Animation'}
@@ -228,7 +249,7 @@ export function ChatContainer() {
 
       {/* Footer */}
       <div className="p-4 text-center">
-        <p className="text-xs text-gray-400">
+        <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
           Réponses basées sur des données scientifiques. Toujours vérifier les sources.
         </p>
       </div>
