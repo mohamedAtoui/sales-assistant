@@ -105,7 +105,8 @@ function playStopSound(): void {
 interface UseSpeechRecognitionOptions {
   lang?: string;
   continuous?: boolean;
-  onResult?: (transcript: string) => void;
+  interimResults?: boolean;
+  onResult?: (transcript: string, isFinal: boolean) => void;
   onEnd?: () => void;
   playSounds?: boolean;
   stopOnResult?: boolean;
@@ -121,6 +122,7 @@ interface UseSpeechSynthesisOptions {
 export function useSpeechRecognition({
   lang = 'fr-FR',
   continuous = false,
+  interimResults = false,
   onResult,
   onEnd,
   playSounds = true,
@@ -154,13 +156,16 @@ export function useSpeechRecognition({
       recognitionRef.current = new SpeechRecognitionAPI();
       recognitionRef.current.lang = lang;
       recognitionRef.current.continuous = continuous;
-      recognitionRef.current.interimResults = false;
+      recognitionRef.current.interimResults = interimResults;
 
       recognitionRef.current.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        onResultRef.current?.(transcript);
-        // Stop immediately after getting a result if requested
-        if (stopOnResult && recognitionRef.current) {
+        // Get the latest result
+        const result = event.results[event.results.length - 1];
+        const transcript = result[0].transcript;
+        const isFinal = result.isFinal;
+        onResultRef.current?.(transcript, isFinal);
+        // Stop immediately after getting a final result if requested
+        if (stopOnResult && isFinal && recognitionRef.current) {
           recognitionRef.current.stop();
         }
       };
@@ -183,7 +188,7 @@ export function useSpeechRecognition({
         recognitionRef.current.abort();
       }
     };
-  }, [lang, continuous, stopOnResult]);
+  }, [lang, continuous, interimResults, stopOnResult]);
 
   const startListening = useCallback(() => {
     if (recognitionRef.current && !isListeningRef.current) {
