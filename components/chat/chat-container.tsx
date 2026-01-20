@@ -49,8 +49,10 @@ export function ChatContainer() {
   const { messages, sendMessage, status } = useChat({ transport });
   const isLoading = status === 'submitted' || status === 'streaming';
 
-  // Ref to stop speaking (set after hook returns)
+  // Refs for cross-callback access
   const stopSpeakingRef = useRef<(() => void) | null>(null);
+  const isSpeakingRef = useRef(false);
+  const startListeningRef = useRef<(() => void) | null>(null);
 
   // Handle voice result - stop any ongoing speech and store transcript
   const handleVoiceResult = useCallback((transcript: string) => {
@@ -61,7 +63,7 @@ export function ChatContainer() {
     }
   }, []);
 
-  // Handle recognition end - send the message
+  // Handle recognition end - send the message or restart listening if TTS still playing
   const handleRecognitionEnd = useCallback(async () => {
     if (pendingMessageRef.current) {
       const message = pendingMessageRef.current;
@@ -71,6 +73,11 @@ export function ChatContainer() {
       } catch (error) {
         console.error('Error sending message:', error);
       }
+    } else if (isSpeakingRef.current) {
+      // No result but TTS still playing - restart listening for interruption
+      setTimeout(() => {
+        startListeningRef.current?.();
+      }, 100);
     }
   }, [sendMessage]);
 
@@ -110,8 +117,10 @@ export function ChatContainer() {
     onSpeechEnd: handleSpeechEnd,
   });
 
-  // Set the ref so handleVoiceResult can stop speaking
+  // Set refs for cross-callback access
   stopSpeakingRef.current = stopSpeaking;
+  isSpeakingRef.current = isSpeaking;
+  startListeningRef.current = startListening;
 
   // Read assistant messages aloud
   const lastMessageIdRef = useRef<string | null>(null);
