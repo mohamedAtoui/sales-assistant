@@ -4,7 +4,8 @@ import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import { signOut } from 'next-auth/react';
-import { LogOut, Mic, MicOff, Moon, Sun } from 'lucide-react';
+import { LogOut, Mic, MicOff, Moon, Sun, MessageSquare } from 'lucide-react';
+import Link from 'next/link';
 import { SageAvatar } from './sage-avatar';
 import { Button } from '@/components/ui/button';
 import { useSpeechRecognition, useSpeechSynthesis } from '@/lib/hooks/use-speech';
@@ -168,6 +169,16 @@ export function ChatContainer() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Link href="/chat">
+            <Button
+              variant="ghost"
+              size="sm"
+              className={isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-700'}
+            >
+              <MessageSquare className="h-4 w-4 mr-2" />
+              Chat
+            </Button>
+          </Link>
           <Button
             variant="ghost"
             size="sm"
