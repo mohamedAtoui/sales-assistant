@@ -7,6 +7,7 @@ import { signOut } from 'next-auth/react';
 import { LogOut, Send, Mic, Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import ReactMarkdown from 'react-markdown';
 
 export function TextChatContainer() {
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -121,7 +122,17 @@ export function TextChatContainer() {
                       : 'bg-white text-gray-900 shadow-sm border border-gray-200'
                 }`}
               >
-                <p className="whitespace-pre-wrap">{textContent}</p>
+                {message.role === 'user' ? (
+                  <p className="whitespace-pre-wrap">{textContent}</p>
+                ) : (
+                  <div className={`prose prose-sm max-w-none ${
+                    isDarkMode
+                      ? 'prose-invert prose-p:text-gray-100 prose-headings:text-white prose-strong:text-white prose-li:text-gray-100'
+                      : 'prose-gray'
+                  } prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0`}>
+                    <ReactMarkdown>{textContent}</ReactMarkdown>
+                  </div>
+                )}
               </div>
             </div>
           );
