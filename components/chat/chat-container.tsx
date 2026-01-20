@@ -12,6 +12,8 @@ import ReactMarkdown from 'react-markdown';
 // Clean text for TTS - remove markdown and make it speech-friendly
 function cleanTextForSpeech(text: string): string {
   return text
+    // Fix pronunciation of brand names
+    .replace(/Synapgen/gi, 'Synapjène')
     .replace(/\|[^\n]+\|/g, '')
     .replace(/\|-+\|/g, '')
     .replace(/\*\*([^*]+)\*\*/g, '$1')
