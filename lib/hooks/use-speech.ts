@@ -108,6 +108,7 @@ interface UseSpeechRecognitionOptions {
   onResult?: (transcript: string) => void;
   onEnd?: () => void;
   playSounds?: boolean;
+  stopOnResult?: boolean;
 }
 
 interface UseSpeechSynthesisOptions {
@@ -123,6 +124,7 @@ export function useSpeechRecognition({
   onResult,
   onEnd,
   playSounds = true,
+  stopOnResult = false,
 }: UseSpeechRecognitionOptions = {}) {
   const [isListening, setIsListening] = useState(false);
   const [isSupported, setIsSupported] = useState(false);
@@ -130,6 +132,18 @@ export function useSpeechRecognition({
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   // Use ref to track actual listening state synchronously (avoids race conditions)
   const isListeningRef = useRef(false);
+  // Use refs for callbacks to avoid stale closures
+  const onResultRef = useRef(onResult);
+  const onEndRef = useRef(onEnd);
+
+  // Keep callback refs updated
+  useEffect(() => {
+    onResultRef.current = onResult;
+  }, [onResult]);
+
+  useEffect(() => {
+    onEndRef.current = onEnd;
+  }, [onEnd]);
 
   useEffect(() => {
     const SpeechRecognitionAPI =
@@ -144,7 +158,11 @@ export function useSpeechRecognition({
 
       recognitionRef.current.onresult = (event) => {
         const transcript = event.results[0][0].transcript;
-        onResult?.(transcript);
+        onResultRef.current?.(transcript);
+        // Stop immediately after getting a result if requested
+        if (stopOnResult && recognitionRef.current) {
+          recognitionRef.current.stop();
+        }
       };
 
       recognitionRef.current.onerror = (event) => {
@@ -156,7 +174,7 @@ export function useSpeechRecognition({
       recognitionRef.current.onend = () => {
         isListeningRef.current = false;
         setIsListening(false);
-        onEnd?.();
+        onEndRef.current?.();
       };
     }
 
@@ -165,7 +183,7 @@ export function useSpeechRecognition({
         recognitionRef.current.abort();
       }
     };
-  }, [lang, continuous, onResult, onEnd]);
+  }, [lang, continuous, stopOnResult]);
 
   const startListening = useCallback(() => {
     if (recognitionRef.current && !isListeningRef.current) {

@@ -47,7 +47,7 @@ export function ChatContainer() {
   const { messages, sendMessage, status } = useChat({ transport });
   const isLoading = status === 'submitted' || status === 'streaming';
 
-  // Handle voice result - store and send message
+  // Handle voice result - store transcript
   const handleVoiceResult = useCallback((transcript: string) => {
     if (transcript.trim()) {
       pendingMessageRef.current = transcript;
@@ -77,6 +77,7 @@ export function ChatContainer() {
     onResult: handleVoiceResult,
     onEnd: handleRecognitionEnd,
     playSounds: true,
+    stopOnResult: true,
   });
 
   // Auto-start listening after TTS finishes (continuous conversation)
@@ -95,6 +96,7 @@ export function ChatContainer() {
     isSupported: isSynthesisSupported,
     speak,
     stop: stopSpeaking,
+    setVoiceEnabled,
   } = useSpeechSynthesis({
     lang: 'fr-FR',
     rate: 1,
@@ -129,15 +131,17 @@ export function ChatContainer() {
   // Start conversation
   const handleStart = useCallback(() => {
     setIsConversationActive(true);
+    setVoiceEnabled(true);
     startListening();
-  }, [startListening]);
+  }, [startListening, setVoiceEnabled]);
 
   // End conversation
   const handleEnd = useCallback(() => {
     setIsConversationActive(false);
+    setVoiceEnabled(false);
     stopListening();
     stopSpeaking();
-  }, [stopListening, stopSpeaking]);
+  }, [stopListening, stopSpeaking, setVoiceEnabled]);
 
   const isVoiceSupported = isRecognitionSupported && isSynthesisSupported;
 
