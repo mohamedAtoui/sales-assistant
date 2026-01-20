@@ -57,8 +57,6 @@ export function ChatContainer() {
 
   // Refs for cross-callback access
   const stopSpeakingRef = useRef<(() => void) | null>(null);
-  const isSpeakingRef = useRef(false);
-  const startListeningRef = useRef<(() => void) | null>(null);
   const voiceModeEnabledRef = useRef(voiceModeEnabled);
 
   // Keep ref in sync with state
@@ -91,13 +89,8 @@ export function ChatContainer() {
       } catch (error) {
         console.error('Error sending message:', error);
       }
-    } else if (isSpeakingRef.current && voiceModeEnabledRef.current) {
-      // No result but TTS still playing - restart listening for interruption
-      setTimeout(() => {
-        startListeningRef.current?.();
-        setIsVoiceInputActive(true);
-      }, 100);
     }
+    // Listening will restart via handleSpeechEnd when TTS finishes
   }, [sendMessage]);
 
   const {
@@ -139,10 +132,8 @@ export function ChatContainer() {
     onSpeechEnd: handleSpeechEnd,
   });
 
-  // Set refs for cross-callback access
+  // Set ref for cross-callback access
   stopSpeakingRef.current = stopSpeaking;
-  isSpeakingRef.current = isSpeaking;
-  startListeningRef.current = startListening;
 
   const isVoiceSupported = isRecognitionSupported && isSynthesisSupported;
 
@@ -174,13 +165,7 @@ export function ChatContainer() {
         setSpeakingMessageId(lastMessage.id);
         setVoiceEnabled(true);
         speak(cleanedText);
-        // Start listening after a short delay so user can interrupt
-        setTimeout(() => {
-          if (voiceModeEnabledRef.current) {
-            startListening();
-            setIsVoiceInputActive(true);
-          }
-        }, 500);
+        // Listening will start automatically when TTS finishes via handleSpeechEnd
       }
     }
   }, [messages, voiceModeEnabled, isLoading, speak, startListening, setVoiceEnabled]);
