@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import { signOut } from 'next-auth/react';
-import { LogOut, Mic, MicOff, Moon, Sun, MessageSquare } from 'lucide-react';
+import { LogOut, Mic, MicOff, Moon, Sun, MessageSquare, VolumeX } from 'lucide-react';
 import Link from 'next/link';
 import { SageAvatar } from './sage-avatar';
 import { Button } from '@/components/ui/button';
@@ -49,9 +49,14 @@ export function ChatContainer() {
   const { messages, sendMessage, status } = useChat({ transport });
   const isLoading = status === 'submitted' || status === 'streaming';
 
-  // Handle voice result - store transcript
+  // Ref to stop speaking (set after hook returns)
+  const stopSpeakingRef = useRef<(() => void) | null>(null);
+
+  // Handle voice result - stop any ongoing speech and store transcript
   const handleVoiceResult = useCallback((transcript: string) => {
     if (transcript.trim()) {
+      // Stop Sage speaking if user interrupts
+      stopSpeakingRef.current?.();
       pendingMessageRef.current = transcript;
     }
   }, []);
@@ -105,6 +110,9 @@ export function ChatContainer() {
     onSpeechEnd: handleSpeechEnd,
   });
 
+  // Set the ref so handleVoiceResult can stop speaking
+  stopSpeakingRef.current = stopSpeaking;
+
   // Read assistant messages aloud
   const lastMessageIdRef = useRef<string | null>(null);
   useEffect(() => {
@@ -126,9 +134,15 @@ export function ChatContainer() {
       if (cleanedText && cleanedText.length > 0) {
         lastMessageIdRef.current = lastMessage.id;
         speak(cleanedText);
+        // Start listening after a short delay so user can interrupt
+        setTimeout(() => {
+          if (isConversationActive) {
+            startListening();
+          }
+        }, 500);
       }
     }
-  }, [messages, isConversationActive, isLoading, speak]);
+  }, [messages, isConversationActive, isLoading, speak, startListening]);
 
   // Start conversation
   const handleStart = useCallback(() => {
