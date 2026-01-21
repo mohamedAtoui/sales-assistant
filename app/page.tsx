@@ -1,7 +1,7 @@
 import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 import { authOptions } from '@/lib/auth';
-import { ChatContainer } from '@/components/chat/chat-container';
+import { VoiceContainer } from '@/components/voice/voice-container';
 
 export default async function Home() {
   const session = await getServerSession(authOptions);
@@ -10,5 +10,5 @@ export default async function Home() {
     redirect('/login');
   }
 
-  return <ChatContainer />;
+  return <VoiceContainer />;
 }
