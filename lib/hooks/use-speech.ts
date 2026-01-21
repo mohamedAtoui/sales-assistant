@@ -159,11 +159,21 @@ export function useSpeechRecognition({
       recognitionRef.current.interimResults = interimResults;
 
       recognitionRef.current.onresult = (event) => {
-        // Get the latest result
-        const result = event.results[event.results.length - 1];
-        const transcript = result[0].transcript;
-        const isFinal = result.isFinal;
-        onResultRef.current?.(transcript, isFinal);
+        // Accumulate all transcripts (both final and interim)
+        let fullTranscript = '';
+        let hasInterim = false;
+
+        for (let i = 0; i < event.results.length; i++) {
+          const result = event.results[i];
+          fullTranscript += result[0].transcript;
+          if (!result.isFinal) {
+            hasInterim = true;
+          }
+        }
+
+        // isFinal is true only when all results are final
+        const isFinal = !hasInterim;
+        onResultRef.current?.(fullTranscript, isFinal);
         // Stop immediately after getting a final result if requested
         if (stopOnResult && isFinal && recognitionRef.current) {
           recognitionRef.current.stop();

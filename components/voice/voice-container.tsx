@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useVoiceInteraction } from '@/lib/hooks/use-voice-interaction';
 import { useAudioAnalyzer } from '@/lib/hooks/use-audio-analyzer';
 import { MinimalHeader } from './minimal-header';
@@ -9,12 +9,17 @@ import { StatusIndicator } from './status-indicator';
 import { TranscriptBubble } from './transcript-bubble';
 import { PushToTalkButton } from './push-to-talk-button';
 
+const SENT_MESSAGE_FADE_DELAY = 3000; // Hide sent message 3 seconds after speaking starts
+
 export function VoiceContainer() {
   const [isMounted, setIsMounted] = useState(false);
+  const [showSentDuringSpeaking, setShowSentDuringSpeaking] = useState(false);
+  const fadeTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const {
     voiceState,
     transcript,
+    lastUserMessage,
     isVoiceSupported,
     isLoading,
     startPushToTalk,
@@ -38,6 +43,34 @@ export function VoiceContainer() {
       stopAnalyzer();
     }
   }, [voiceState, startAnalyzer, stopAnalyzer]);
+
+  // Manage sent message visibility with fade delay
+  useEffect(() => {
+    // Clear any existing timer
+    if (fadeTimerRef.current) {
+      clearTimeout(fadeTimerRef.current);
+      fadeTimerRef.current = null;
+    }
+
+    if (voiceState === 'thinking') {
+      // Show sent message during thinking
+      setShowSentDuringSpeaking(true);
+    } else if (voiceState === 'speaking' && showSentDuringSpeaking) {
+      // Start fade timer when speaking begins
+      fadeTimerRef.current = setTimeout(() => {
+        setShowSentDuringSpeaking(false);
+      }, SENT_MESSAGE_FADE_DELAY);
+    } else if (voiceState === 'listening' || voiceState === 'idle') {
+      // Reset when starting new interaction or going idle
+      setShowSentDuringSpeaking(false);
+    }
+
+    return () => {
+      if (fadeTimerRef.current) {
+        clearTimeout(fadeTimerRef.current);
+      }
+    };
+  }, [voiceState, showSentDuringSpeaking]);
 
   // Keyboard support for spacebar PTT
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -109,10 +142,17 @@ export function VoiceContainer() {
 
         {/* Transcript Bubble */}
         <div className="h-20 mb-8 w-full max-w-md">
-          <TranscriptBubble
-            transcript={transcript}
-            isVisible={voiceState === 'listening' && transcript.length > 0}
-          />
+          {(() => {
+            const showLiveTranscript = voiceState === 'listening' && transcript.length > 0;
+            const showSentMessage = (voiceState === 'thinking' || (voiceState === 'speaking' && showSentDuringSpeaking)) && lastUserMessage.length > 0;
+            return (
+              <TranscriptBubble
+                transcript={showLiveTranscript ? transcript : lastUserMessage}
+                isVisible={showLiveTranscript || showSentMessage}
+                isSent={showSentMessage}
+              />
+            );
+          })()}
         </div>
 
         {/* Push to Talk Button */}

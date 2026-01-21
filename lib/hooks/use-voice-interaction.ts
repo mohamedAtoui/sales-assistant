@@ -38,6 +38,7 @@ interface UseVoiceInteractionOptions {
 export function useVoiceInteraction({ onError }: UseVoiceInteractionOptions = {}) {
   const [voiceState, setVoiceState] = useState<VoiceState>('idle');
   const [transcript, setTranscript] = useState<string>('');
+  const [lastUserMessage, setLastUserMessage] = useState<string>('');
   const pendingMessageRef = useRef<string | null>(null);
   const lastMessageIdRef = useRef<string | null>(null);
 
@@ -76,6 +77,7 @@ export function useVoiceInteraction({ onError }: UseVoiceInteractionOptions = {}
     if (pendingMessageRef.current) {
       const message = pendingMessageRef.current;
       pendingMessageRef.current = null;
+      setLastUserMessage(message);
       setVoiceState('thinking');
       setTranscript('');
       console.log('[Voice] Sending message:', message);
@@ -179,6 +181,7 @@ export function useVoiceInteraction({ onError }: UseVoiceInteractionOptions = {}
     stopSpeaking();
     setVoiceState('listening');
     setTranscript('');
+    setLastUserMessage('');
     pendingMessageRef.current = null;
     setVoiceEnabled(true);
     startListening();
@@ -210,6 +213,7 @@ export function useVoiceInteraction({ onError }: UseVoiceInteractionOptions = {}
   return {
     voiceState,
     transcript,
+    lastUserMessage,
     isVoiceSupported,
     isLoading,
     startPushToTalk,
