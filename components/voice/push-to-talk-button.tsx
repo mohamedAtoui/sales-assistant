@@ -1,7 +1,14 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Mic, Square, StopCircle } from 'lucide-react';
 import { type VoiceState } from '@/lib/hooks/use-voice-interaction';
+
+// Detect mobile device
+function isMobileDevice(): boolean {
+  if (typeof window === 'undefined') return false;
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
 
 interface PushToTalkButtonProps {
   voiceState: VoiceState;
@@ -18,11 +25,34 @@ export function PushToTalkButton({
   onStopSpeaking,
   disabled = false,
 }: PushToTalkButtonProps) {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    setIsMobile(isMobileDevice());
+  }, []);
+
   const isListening = voiceState === 'listening';
   const isSpeaking = voiceState === 'speaking';
   const isThinking = voiceState === 'thinking';
 
+  // Mobile: tap to toggle (start/stop)
+  const handleTap = () => {
+    if (isSpeaking) {
+      onStopSpeaking();
+      return;
+    }
+    if (isListening) {
+      onPressEnd();
+      return;
+    }
+    if (!disabled && !isThinking) {
+      onPressStart();
+    }
+  };
+
+  // Desktop: push-to-talk (hold to speak)
   const handleMouseDown = () => {
+    if (isMobile) return; // Use tap on mobile
     if (isSpeaking) {
       onStopSpeaking();
       return;
@@ -33,27 +63,31 @@ export function PushToTalkButton({
   };
 
   const handleMouseUp = () => {
+    if (isMobile) return; // Use tap on mobile
     if (isListening) {
       onPressEnd();
-    }
-  };
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    e.preventDefault();
-    if (isSpeaking) {
-      onStopSpeaking();
-      return;
-    }
-    if (!disabled && !isThinking) {
-      onPressStart();
     }
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
     e.preventDefault();
-    if (isListening) {
-      onPressEnd();
+    if (isMobile) {
+      handleTap();
     }
+  };
+
+  // Get the appropriate label based on device and state
+  const getLabel = () => {
+    if (isListening) {
+      return isMobile ? 'Appuyer pour envoyer' : 'Relâchez pour envoyer';
+    }
+    if (isSpeaking) {
+      return 'Appuyer pour arrêter';
+    }
+    if (isThinking) {
+      return 'Patientez...';
+    }
+    return isMobile ? 'Appuyer pour parler' : 'Maintenir pour parler';
   };
 
   return (
@@ -62,7 +96,6 @@ export function PushToTalkButton({
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
-        onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         disabled={disabled || isThinking}
         className={`
@@ -70,6 +103,7 @@ export function PushToTalkButton({
           transition-all duration-200 ease-out
           focus:outline-none focus:ring-4 focus:ring-offset-2
           disabled:opacity-50 disabled:cursor-not-allowed
+          select-none touch-none
           ${isListening
             ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/50 scale-110 ptt-active focus:ring-cyan-400'
             : isSpeaking
@@ -79,7 +113,7 @@ export function PushToTalkButton({
                 : 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 hover:bg-emerald-500 hover:scale-105 active:scale-95 focus:ring-emerald-400'
           }
         `}
-        aria-label={isListening ? 'Relâcher pour envoyer' : isSpeaking ? 'Appuyer pour arrêter' : 'Maintenir pour parler'}
+        aria-label={getLabel()}
       >
         {isListening ? (
           <Square className="h-8 w-8 fill-current" />
@@ -96,13 +130,7 @@ export function PushToTalkButton({
       </button>
 
       <p className="text-xs text-gray-500 text-center">
-        {isListening
-          ? 'Relâchez pour envoyer'
-          : isSpeaking
-            ? 'Appuyer pour arrêter'
-            : isThinking
-              ? 'Patientez...'
-              : 'Maintenir pour parler'}
+        {getLabel()}
       </p>
     </div>
   );
