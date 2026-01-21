@@ -102,6 +102,12 @@ function playStopSound(): void {
   playBeep(523, 0.15, 0.25); // C5
 }
 
+// Detect if running on mobile device
+function isMobileDevice(): boolean {
+  if (typeof window === 'undefined') return false;
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+
 interface UseSpeechRecognitionOptions {
   lang?: string;
   continuous?: boolean;
@@ -153,10 +159,14 @@ export function useSpeechRecognition({
     setIsSupported(!!SpeechRecognitionAPI);
 
     if (SpeechRecognitionAPI) {
+      const isMobile = isMobileDevice();
       recognitionRef.current = new SpeechRecognitionAPI();
       recognitionRef.current.lang = lang;
-      recognitionRef.current.continuous = continuous;
+      // Disable continuous mode on mobile - it doesn't work well on Android
+      recognitionRef.current.continuous = isMobile ? false : continuous;
       recognitionRef.current.interimResults = interimResults;
+
+      console.log('[Speech] Initialized:', { isMobile, continuous: recognitionRef.current.continuous, interimResults });
 
       recognitionRef.current.onresult = (event) => {
         // Accumulate all transcripts (both final and interim)
@@ -181,9 +191,12 @@ export function useSpeechRecognition({
       };
 
       recognitionRef.current.onerror = (event) => {
+        console.error('[Speech] Recognition error:', event.error, event.message);
         setError(event.error);
         isListeningRef.current = false;
         setIsListening(false);
+        // Still trigger onEnd so the UI can recover
+        onEndRef.current?.();
       };
 
       recognitionRef.current.onend = () => {
@@ -202,13 +215,21 @@ export function useSpeechRecognition({
 
   const startListening = useCallback(() => {
     if (recognitionRef.current && !isListeningRef.current) {
+      console.log('[Speech] Starting recognition...');
       setError(null);
       isListeningRef.current = true;
       setIsListening(true);
       if (playSounds) {
         playStartSound();
       }
-      recognitionRef.current.start();
+      try {
+        recognitionRef.current.start();
+        console.log('[Speech] Recognition started successfully');
+      } catch (err) {
+        console.error('[Speech] Failed to start recognition:', err);
+        isListeningRef.current = false;
+        setIsListening(false);
+      }
     }
   }, [playSounds]);
 
@@ -217,9 +238,9 @@ export function useSpeechRecognition({
       if (playSounds) {
         playStopSound();
       }
-      // Use abort() instead of stop() for immediate response
-      // We already have the transcript from interim results
-      recognitionRef.current.abort();
+      // Use stop() instead of abort() - abort() doesn't work properly on Android
+      // It discards results and may not trigger onend
+      recognitionRef.current.stop();
       isListeningRef.current = false;
       setIsListening(false);
     }
