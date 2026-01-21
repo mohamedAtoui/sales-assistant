@@ -210,6 +210,27 @@ export function useVoiceInteraction({ onError }: UseVoiceInteractionOptions = {}
     setVoiceEnabled(false);
   }, [stopSpeaking, stopListening, setVoiceEnabled]);
 
+  // Send a text message (from text input)
+  const sendTextMessage = useCallback(async (text: string) => {
+    if (!text.trim()) return;
+
+    // Stop any ongoing speech
+    stopSpeaking();
+    stopListening();
+
+    setLastUserMessage(text);
+    setVoiceState('thinking');
+    setVoiceEnabled(true);
+
+    try {
+      await sendMessage({ text });
+    } catch (error) {
+      console.error('[Voice] Error sending text message:', error);
+      onError?.('Erreur lors de l\'envoi du message');
+      setVoiceState('idle');
+    }
+  }, [sendMessage, stopSpeaking, stopListening, setVoiceEnabled, onError]);
+
   return {
     voiceState,
     transcript,
@@ -220,5 +241,6 @@ export function useVoiceInteraction({ onError }: UseVoiceInteractionOptions = {}
     stopPushToTalk,
     stopSpeaking: stopSpeakingManually,
     stopAll,
+    sendTextMessage,
   };
 }

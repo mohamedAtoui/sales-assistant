@@ -8,6 +8,7 @@ import { VoiceCapsule } from './voice-capsule';
 import { StatusIndicator } from './status-indicator';
 import { TranscriptBubble } from './transcript-bubble';
 import { PushToTalkButton } from './push-to-talk-button';
+import { TextInput } from './text-input';
 
 const SENT_MESSAGE_FADE_DELAY = 3000; // Hide sent message 3 seconds after speaking starts
 
@@ -26,6 +27,7 @@ export function VoiceContainer() {
     stopPushToTalk,
     stopSpeaking,
     stopAll,
+    sendTextMessage,
   } = useVoiceInteraction();
 
   const { audioLevel, start: startAnalyzer, stop: stopAnalyzer } = useAudioAnalyzer();
@@ -72,8 +74,12 @@ export function VoiceContainer() {
     };
   }, [voiceState, showSentDuringSpeaking]);
 
-  // Keyboard support for spacebar PTT
+  // Keyboard support for spacebar PTT (only when not typing in input)
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    // Don't trigger PTT if user is typing in an input or textarea
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+
     if (e.code === 'Space' && !e.repeat && voiceState === 'idle') {
       e.preventDefault();
       startPushToTalk();
@@ -81,6 +87,10 @@ export function VoiceContainer() {
   }, [voiceState, startPushToTalk]);
 
   const handleKeyUp = useCallback((e: KeyboardEvent) => {
+    // Don't trigger PTT if user is typing in an input or textarea
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+
     if (e.code === 'Space' && voiceState === 'listening') {
       e.preventDefault();
       stopPushToTalk();
@@ -165,9 +175,18 @@ export function VoiceContainer() {
         />
 
         {/* Keyboard hint */}
-        <p className="mt-4 text-xs text-gray-400">
+        <p className="mt-4 text-xs text-gray-400 mb-6">
           Astuce: Appuyez sur Espace pour parler
         </p>
+
+        {/* Text Input */}
+        <div className="w-full px-4">
+          <TextInput
+            onSend={sendTextMessage}
+            disabled={voiceState === 'listening' || voiceState === 'thinking'}
+            placeholder="Tapez votre message..."
+          />
+        </div>
       </main>
 
       {/* Footer */}
