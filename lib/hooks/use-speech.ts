@@ -217,7 +217,9 @@ export function useSpeechRecognition({
       if (playSounds) {
         playStopSound();
       }
-      recognitionRef.current.stop();
+      // Use abort() instead of stop() for immediate response
+      // We already have the transcript from interim results
+      recognitionRef.current.abort();
       isListeningRef.current = false;
       setIsListening(false);
     }
