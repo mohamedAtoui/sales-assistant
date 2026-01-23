@@ -14,6 +14,7 @@ const SENT_MESSAGE_FADE_DELAY = 3000; // Hide sent message 3 seconds after speak
 
 export function VoiceContainer() {
   const [isMounted, setIsMounted] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [showSentDuringSpeaking, setShowSentDuringSpeaking] = useState(false);
   const fadeTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -35,16 +36,24 @@ export function VoiceContainer() {
   // Track when component is mounted (client-side)
   useEffect(() => {
     setIsMounted(true);
+    setIsMobile(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
   }, []);
 
   // Start/stop audio analyzer based on voice state
+  // On mobile, don't start analyzer during listening - it competes for the microphone
+  // Only run it during speaking for visual feedback
   useEffect(() => {
+    if (isMobile && voiceState === 'listening') {
+      stopAnalyzer();
+      return;
+    }
+
     if (voiceState === 'listening' || voiceState === 'speaking') {
       startAnalyzer();
     } else {
       stopAnalyzer();
     }
-  }, [voiceState, startAnalyzer, stopAnalyzer]);
+  }, [voiceState, isMobile, startAnalyzer, stopAnalyzer]);
 
   // Manage sent message visibility with fade delay
   useEffect(() => {
