@@ -31,6 +31,55 @@ function cleanTextForSpeech(text: string): string {
     .trim();
 }
 
+// Speech recognition corrections for product-specific terms
+const SPEECH_CORRECTIONS: Array<{ pattern: RegExp; replacement: string }> = [
+  // Synapgen - product name
+  { pattern: /snap\s*chat/gi, replacement: 'Synapgen' },
+  { pattern: /snap\s*jeun/gi, replacement: 'Synapgen' },
+  { pattern: /synap\s*jeun/gi, replacement: 'Synapgen' },
+  { pattern: /synap?\s*[gj][eèé]u?n/gi, replacement: 'Synapgen' },
+  { pattern: /sina[bp]\s*[gj][eèé]n/gi, replacement: 'Synapgen' },
+  { pattern: /snap\s*[gj][eèé]n/gi, replacement: 'Synapgen' },
+  { pattern: /s[iy]na[bp]\s*gen/gi, replacement: 'Synapgen' },
+
+  // Handson - company name
+  { pattern: /hands?\s*on/gi, replacement: 'Handson' },
+  { pattern: /han[dt]\s*son/gi, replacement: 'Handson' },
+  { pattern: /and\s*son/gi, replacement: 'Handson' },
+
+  // Magtein - ingredient brand
+  { pattern: /mag\s*t[eèé][iy]n/gi, replacement: 'Magtein' },
+  { pattern: /mag?\s*taine/gi, replacement: 'Magtein' },
+  { pattern: /mac\s*t[eèé][iy]n/gi, replacement: 'Magtein' },
+
+  // L-thréonate - compound
+  { pattern: /l[\s-]*t[hr]?[eèé]onat/gi, replacement: 'L-thréonate' },
+  { pattern: /l[\s-]*tr[eèé]onat/gi, replacement: 'L-thréonate' },
+  { pattern: /elle?\s*t[hr]?[eèé]onat/gi, replacement: 'L-thréonate' },
+
+  // Magnésium L-thréonate - full compound name
+  { pattern: /magn[eèé]sium\s+l[\s-]*t[hr]?[eèé]onat/gi, replacement: 'Magnésium L-thréonate' },
+
+  // Bisglycinate - magnesium form
+  { pattern: /bis?\s*glycinate/gi, replacement: 'bisglycinate' },
+  { pattern: /bi\s*glycinate/gi, replacement: 'bisglycinate' },
+
+  // BHE - blood-brain barrier (French abbreviation)
+  { pattern: /b\.?\s*h\.?\s*e\.?/gi, replacement: 'BHE' },
+  { pattern: /barri[eè]re\s+h[eèé]mato[\s-]*enc[eèé]phalique/gi, replacement: 'barrière hémato-encéphalique' },
+
+  // GABA
+  { pattern: /gaba[eèé]rgique/gi, replacement: 'GABAergique' },
+];
+
+function normalizeUserInput(text: string): string {
+  let result = text;
+  for (const { pattern, replacement } of SPEECH_CORRECTIONS) {
+    result = result.replace(pattern, replacement);
+  }
+  return result;
+}
+
 interface UseVoiceInteractionOptions {
   onError?: (error: string) => void;
 }
@@ -65,17 +114,22 @@ export function useVoiceInteraction({ onError }: UseVoiceInteractionOptions = {}
   const handleVoiceResult = useCallback((text: string, isFinal: boolean) => {
     console.log('[Voice] Result:', { text, isFinal, state: voiceStateRef.current });
     if (text.trim()) {
-      setTranscript(text);
-      // Always update pending message with latest transcript
-      pendingMessageRef.current = text;
+      const normalized = normalizeUserInput(text);
+      setTranscript(normalized);
+      pendingMessageRef.current = normalized;
     }
   }, []);
 
   // Handle recognition end
   const handleRecognitionEnd = useCallback(async () => {
     console.log('[Voice] Recognition ended, pending:', pendingMessageRef.current);
-    if (pendingMessageRef.current) {
-      const message = pendingMessageRef.current;
+    // Only send if we have actual content (not just whitespace)
+    if (pendingMessageRef.current && pendingMessageRef.current.trim().length > 0) {
+      const rawMessage = pendingMessageRef.current;
+      const message = normalizeUserInput(rawMessage);
+      if (message !== rawMessage) {
+        console.log('[Voice] Corrected:', rawMessage, '→', message);
+      }
       pendingMessageRef.current = null;
       setLastUserMessage(message);
       setVoiceState('thinking');
@@ -90,7 +144,9 @@ export function useVoiceInteraction({ onError }: UseVoiceInteractionOptions = {}
         setVoiceState('idle');
       }
     } else {
-      console.log('[Voice] No pending message, going idle');
+      // No content captured, go back to idle
+      console.log('[Voice] No pending message or empty content, going idle');
+      pendingMessageRef.current = null;
       setVoiceState('idle');
       setTranscript('');
     }
@@ -111,13 +167,11 @@ export function useVoiceInteraction({ onError }: UseVoiceInteractionOptions = {}
     stopOnResult: false,
   });
 
-  // Auto-start listening after TTS finishes
+  // Go idle after TTS finishes (user must press button again to speak)
   const handleSpeechEnd = useCallback(() => {
-    setVoiceState('listening');
-    setTimeout(() => {
-      startListening();
-    }, 300);
-  }, [startListening]);
+    console.log('[Voice] Speech ended, going idle');
+    setVoiceState('idle');
+  }, []);
 
   const {
     isSpeaking,
@@ -195,10 +249,10 @@ export function useVoiceInteraction({ onError }: UseVoiceInteractionOptions = {}
 
   // Stop speaking manually (from button) - goes to idle, not listening
   const stopSpeakingManually = useCallback(() => {
-    console.log('[Voice] Manual stop speaking');
+    console.log('[Voice] Manual stop speaking, isSpeaking:', isSpeaking);
     stopSpeaking();
     setVoiceState('idle');
-  }, [stopSpeaking]);
+  }, [stopSpeaking, isSpeaking]);
 
   // Cancel/stop everything
   const stopAll = useCallback(() => {
