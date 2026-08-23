@@ -11,18 +11,12 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         const authPassword = process.env.AUTH_PASSWORD;
 
-        console.log('=== AUTH DEBUG ===');
-        console.log('AUTH_PASSWORD exists:', !!authPassword);
-        console.log('AUTH_PASSWORD length:', authPassword?.length);
-        console.log('Input password length:', credentials?.password?.length);
-
         if (!authPassword) {
           console.error('AUTH_PASSWORD not configured');
           return null;
         }
 
         if (credentials?.password === authPassword) {
-          console.log('Password match: SUCCESS');
           return {
             id: '1',
             name: 'Équipe Commerciale',
@@ -30,7 +24,7 @@ export const authOptions: NextAuthOptions = {
           };
         }
 
-        console.log('Password match: FAILED');
+
         return null;
       },
     }),
